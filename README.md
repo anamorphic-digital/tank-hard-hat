@@ -37,8 +37,11 @@ a few minutes: it's three Python files, stdlib only.**
 /plugin install tank-hard-hat@tank-hard-hat
 ```
 
-The prompt hook registers automatically. Then add this line to
-`~/.claude/CLAUDE.md` so the skill is applied on every prompt:
+The prompt hook registers automatically. **If you previously installed
+manually (Option B/C), remove your manual `UserPromptSubmit` hook entry from
+`~/.claude/settings.json` first** — running both logs every prompt twice and
+skews the retry detection. Then add this line to `~/.claude/CLAUDE.md` so the
+skill is applied on every prompt:
 
 ```
 Always load and apply the tank-hard-hat skill on every prompt.
