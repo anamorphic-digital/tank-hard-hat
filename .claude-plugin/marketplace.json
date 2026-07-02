@@ -1,0 +1,16 @@
+{
+  "name": "tank-hard-hat",
+  "owner": {
+    "name": "Anamorphic Digital"
+  },
+  "description": "Tank Hard Hat — stress and recovery monitoring for AI-paired coding.",
+  "plugins": [
+    {
+      "name": "tank-hard-hat",
+      "source": "./",
+      "description": "Hard hat for your brain. Monitors stress and recovery during AI-paired coding — nudges breaks at natural seams, flags diminishing returns before you feel them.",
+      "keywords": ["pomodoro", "burnout", "stress", "recovery", "focus", "wellbeing", "breaks"],
+      "category": "productivity"
+    }
+  ]
+}

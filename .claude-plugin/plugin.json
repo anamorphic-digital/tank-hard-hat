@@ -1,0 +1,13 @@
+{
+  "name": "tank-hard-hat",
+  "displayName": "Tank Hard Hat",
+  "description": "Hard hat for your brain. Monitors stress and recovery during AI-paired coding — nudges breaks at natural seams, flags diminishing returns before you feel them.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Anamorphic Digital"
+  },
+  "homepage": "https://github.com/anamorphic-digital/tank-hard-hat",
+  "repository": "https://github.com/anamorphic-digital/tank-hard-hat",
+  "license": "Apache-2.0",
+  "keywords": ["pomodoro", "burnout", "stress", "recovery", "focus", "wellbeing", "breaks"]
+}

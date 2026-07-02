@@ -1,0 +1,100 @@
+{
+  "_comment": "Machine-readable signal->action contract for the mechanical skill<->hook seam. Source of truth for tests/test_contract_table.py. Each entry: the hook signal header, the fields it carries, the state.py command(s) the skill must call in response (with exact positional arg order), the ritual/forbids posture, and the eval_type. 'contract' entries are asserted deterministically (command exists with that arity, SKILL.md names it). 'live' entries are multi-step rituals graded by the live-scenario layer; they carry no single mechanical command. Scoring/Layer-2 behaviour is NOT here (it is content/state-keyed, not signal-keyed) - see eval/oracle.py.",
+  "signals": [
+    {
+      "signal": "NEW SESSION",
+      "header": "[TANK — NEW SESSION",
+      "fields": ["session_id"],
+      "ritual": "startup ritual (goal + 2x2 start_checkin)",
+      "commands": [],
+      "forbids": ["pomodoro on first prompt", "hard boundary on first prompt"],
+      "eval_type": "live"
+    },
+    {
+      "signal": "TIMEOUT DETECTED",
+      "header": "[TANK — TIMEOUT DETECTED",
+      "fields": ["gap_minutes", "previous_session", "had_checkin"],
+      "ritual": "confirm new-vs-resume once",
+      "commands": [
+        {"name": "end-session", "args": ["session_id", "checkin_json"], "when": "user confirms new"}
+      ],
+      "forbids": ["re-prompting after one confirmation"],
+      "eval_type": "contract"
+    },
+    {
+      "signal": "GOAL NEEDED",
+      "header": "[TANK — GOAL NEEDED",
+      "fields": ["session_id", "instance_id"],
+      "ritual": "goal-only mini-ritual",
+      "commands": [
+        {"name": "add-goal", "args": ["session_id", "instance_id", "text"]}
+      ],
+      "forbids": ["start-session", "full startup ritual", "2x2 check-in", "re-prompting the same instance"],
+      "eval_type": "contract"
+    },
+    {
+      "signal": "MULTI_SESSION DETECTED",
+      "header": "[TANK — MULTI_SESSION DETECTED",
+      "fields": ["active_session", "orphan_session_ids", "orphan_last_active"],
+      "ritual": "surface orphans + single wrap-up offer",
+      "commands": [
+        {"name": "end-session", "args": ["session_id", "checkin_json"], "when": "user confirms close, per orphan"}
+      ],
+      "forbids": ["re-prompting the same orphan set"],
+      "eval_type": "contract"
+    },
+    {
+      "signal": "WRAP-UP PENDING",
+      "header": "[TANK — WRAP-UP PENDING",
+      "fields": ["session_id", "seconds_since_close"],
+      "ritual": "route the 2x2 reply to finalize the parked session",
+      "commands": [
+        {"name": "end-session", "args": ["session_id", "checkin_json"]}
+      ],
+      "forbids": ["new session", "startup ritual", "logging this prompt"],
+      "eval_type": "contract"
+    },
+    {
+      "signal": "STALE CLOSING FINALIZED",
+      "header": "[TANK — STALE CLOSING FINALIZED",
+      "fields": ["session_id", "end_time"],
+      "ritual": "announce the skip (hook already finalized); undo offered next turn",
+      "commands": [],
+      "forbids": ["asking for confirmation", "new session", "logging this prompt"],
+      "eval_type": "live"
+    },
+    {
+      "signal": "REOPEN WINDOW",
+      "header": "[TANK — REOPEN WINDOW",
+      "fields": ["session_id", "seconds_since_sweep"],
+      "ritual": "one-shot undo: reopen if objecting, else resume",
+      "commands": [
+        {"name": "reopen-session", "args": ["session_id"], "when": "user objects to the closure"},
+        {"name": "start-session", "args": [], "when": "user starts new work now"}
+      ],
+      "forbids": ["any ritual unless the user opts in", "logging this prompt"],
+      "eval_type": "contract"
+    },
+    {
+      "signal": "POMODORO NUDGE",
+      "header": "[TANK — POMODORO NUDGE]",
+      "fields": [],
+      "ritual": "prepend the pomodoro nudge at a natural seam",
+      "commands": [],
+      "forbids": ["repeat nag in the same interval"],
+      "eval_type": "live"
+    },
+    {
+      "signal": "HARD BOUNDARY CHECK",
+      "header": "[TANK — HARD BOUNDARY CHECK",
+      "fields": ["session_id", "retry_loops"],
+      "ritual": "run the Layer 2 check: read get-session-summary, detect+log signals, score the 20-min window per signals.md, meta-validate, fire-or-not",
+      "commands": [
+        {"name": "get-session-summary", "args": ["session_id"]},
+        {"name": "log-signal", "args": ["session_id", "instance_id", "json"]}
+      ],
+      "forbids": ["firing without meta-validation", "firing on ambiguous evidence"],
+      "eval_type": "live"
+    }
+  ]
+}
