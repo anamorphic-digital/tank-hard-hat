@@ -124,6 +124,18 @@ tank=$(python3 ~/.claude/skills/tank-hard-hat/scripts/statusline.py 2>/dev/null)
 Plain JSON, human-readable, local-only. Delete `~/.tank/` at any time to
 erase all of it.
 
+## Token cost
+
+The skill spec (`SKILL.md`, ~4k tokens) loads into context once per session
+and stays resident — that's the main cost, and it's context-window space more
+than spend, since prompt caching covers the repeat turns. Ordinary prompts add
+nothing: the hook is local Python and only injects a short `[TANK — …]` line
+when something needs attention. Lifecycle moments — session start, a break
+nudge, the end-of-session check-in — read a small reference file on demand and
+exchange a few hundred tokens of dialogue. Prompt fingerprinting is mechanical
+(no model calls), and the skill makes no API calls of its own — it only ever
+spends tokens inside your session.
+
 ## Uninstall
 
 1. Remove the plugin (`/plugin uninstall tank-hard-hat`) or the symlink and
