@@ -11,7 +11,7 @@ description: >
   session summary, requests a retro, or mentions feeling tired, drained, or burnt out.
 ---
 
-# Tank Stress-Recovery Buddy
+# Tank Hard Hat
 
 A Claude Code skill that helps developers balance intensity and recovery during
 AI-paired coding sessions. Based on the Tank method — a non-prescriptive,
