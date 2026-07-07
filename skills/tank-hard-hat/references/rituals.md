@@ -8,13 +8,9 @@ reproduce them exactly, do not improvise.
 
 ## Onboarding (first run)
 
-Fires on the first invocation, when `~/.tank/` does not exist. Runs in two
-steps — permissions first, then tracking mode — so the second step and
-everything after it runs silently. Only after showing step 1 do you create
-the directory structure (`~/.tank/{config.json,sessions/,dailies/,retro/}`)
-and write default config.
-
-**Step 1 — permissions:**
+Fires on the first invocation, when `~/.tank/` does not exist. Show the
+message first — only after showing it do you create the directory structure
+(`~/.tank/{config.json,sessions/,dailies/,retro/}`) and write default config.
 
 ```
 ───────────────────────────────────────
@@ -27,9 +23,9 @@ and write default config.
    • A heads-up if I spot diminishing returns
    • A quick 2-question check-in at session end
 
-   Two setup questions.
+   One setup question.
 
-   (1) I need two rules allowlisted so
+   I need two rules allowlisted so
    I can work silently — otherwise you'll
    get a permission prompt on every hook
    firing:
@@ -63,53 +59,13 @@ Dispatch on the user's reply:
 - `x` → proceed without setup. Accept that future prompts will fire.
 - Unrecognised or empty → default to `a`.
 
-**Step 2 — tracking mode:**
+After dispatching, set `onboarding_complete: true` in `config.json`.
+Onboarding does not re-fire once `onboarding_complete` is `true`.
 
-```
-───────────────────────────────────────
-🦉 How should I track your prompts to
-   detect patterns like retries?
-
-   [f] Fingerprint — lightweight keyword
-       matching (default)
-   [s] Semantic summary — richer pattern
-       detection. A semantic summary will
-       help provide an overview of your
-       week's main stressors and recovery.
-
-   Reply with a letter (f or s)
-   or just hit enter for default (f).
-───────────────────────────────────────
-```
-
-After the user responds (or hits enter), write choices to `config.json`:
-- `prompt_tracking_mode`: `"fingerprint"` if "f", `"summary"` if "s", default `"fingerprint"`
-- `onboarding_complete`: `true`
-
-If the user gives an unrecognised response, use defaults. Onboarding does not
-re-fire once `onboarding_complete` is `true`.
-
-## Migration (existing users)
-
-Fires once when `prompt_tracking_mode` key is missing from an existing config
-(i.e. `onboarding_complete` is `true` but the key is absent).
-
-```
-───────────────────────────────────────
-🦉 Tank — new setting
-
-   Prompt tracking mode?
-   [f] Fingerprint (default)
-   [s] Semantic summary — will help
-       provide an overview of your week's
-       main stressors and recovery.
-
-   Reply with a letter (f or s)
-───────────────────────────────────────
-```
-
-After the user responds, write choice to `config.json`. If the user skips or
-gives an unrecognised response, use default (`"fingerprint"`).
+Prompt tracking is fingerprint-based and is not a setup question — there is
+nothing to choose. (A legacy `prompt_tracking_mode: "summary"` value in an
+existing config is accepted and currently behaves identically to
+fingerprint; do not ask users to pick a mode.)
 
 ## Startup Ritual
 

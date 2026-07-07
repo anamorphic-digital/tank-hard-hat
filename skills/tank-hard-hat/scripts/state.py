@@ -41,6 +41,7 @@ Usage:
 
 import json
 import os
+import shutil
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -395,19 +396,16 @@ def get_session(session_id):
         print(json.dumps({"error": f"Session {session_id} not found"}))
 
 
-def get_session_summary(session_id):
-    """Compute aggregates for the current session (uses read_session for merged events)."""
-    session = read_session(session_id)
-    if session is None:
-        print(json.dumps({"error": f"Session {session_id} not found"}))
-        sys.exit(1)
-    prompts = session["prompts"]
+def compute_aggregates(prompts, duration_minutes, fired_signals):
+    """Pure aggregates computation over a session's merged prompt events.
 
-    if not prompts:
-        print(json.dumps({"summary": "no prompts yet"}))
-        return
-
-    # Compute aggregates
+    Shared by get-session-summary (on-demand, open sessions) and by both
+    finalization edges into `closed` (end-session below; the stale-closing
+    sweep in hook-prompt.py imports this). The snapshot persisted at close is
+    all that dailies/retros can read once the event store is deleted —
+    fingerprints are working memory for the open session and do not outlive
+    it.
+    """
     task_ids = set()
     retry_count = 0
     max_stretch = 0
@@ -451,19 +449,40 @@ def get_session_summary(session_id):
     else:
         trend = "insufficient_data"
 
-    summary = {
+    return {
         "prompt_count": len(prompts),
         "active_workstream_count": len(task_ids),
+        # task_ids persist by name (topic slugs), not just count, so daily
+        # rollups can still dedupe workstreams across sessions after the
+        # per-prompt events are deleted at close.
+        "task_ids": sorted(task_ids),
         "retry_loop_count": retry_count,
         "longest_unbroken_stretch_minutes": round(max_stretch, 1),
         "natural_breakpoints_detected": breakpoints,
         "specificity_trend": trend,
-        "duration_minutes": session["duration_minutes"],
+        "duration_minutes": duration_minutes,
         # Detected Layer-2 signals (read-only surface). The model records these
         # via log-signal as it detects them; the scoring/threshold decision is
         # left to the model in Option A. The eval oracle grades against this.
-        "fired_signals": _read_signals(session_id),
+        "fired_signals": fired_signals,
     }
+
+
+def get_session_summary(session_id):
+    """Compute aggregates for the current session (uses read_session for merged events)."""
+    session = read_session(session_id)
+    if session is None:
+        print(json.dumps({"error": f"Session {session_id} not found"}))
+        sys.exit(1)
+    prompts = session["prompts"]
+
+    if not prompts:
+        print(json.dumps({"summary": "no prompts yet"}))
+        return
+
+    summary = compute_aggregates(
+        prompts, session["duration_minutes"], _read_signals(session_id)
+    )
 
     # Write aggregates back to session metadata file via _find_session_path
     # (Don't write the full hydrated session — events stay in event logs)
@@ -526,12 +545,28 @@ def end_session(session_id, checkin_json, end_time_iso=None):
         end = datetime.fromisoformat(session["end_time"])
         session["duration_minutes"] = round((end - start).total_seconds() / 60, 1)
 
+    # Snapshot aggregates before the event store goes away. The event log is
+    # working memory for the open session (retry similarity, Layer-2 scoring);
+    # once closed it is never read again except via this snapshot. If the
+    # events are already gone (re-close of a legacy/finalized session), keep
+    # whatever snapshot was taken at the original close.
+    hydrated = read_session(session_id)
+    if hydrated and hydrated.get("prompts"):
+        session["aggregates"] = compute_aggregates(
+            hydrated["prompts"], session["duration_minutes"], _read_signals(session_id)
+        )
+
     path.write_text(json.dumps(session, indent=2))
 
     if not already_closed:
         CLOSED_DIR.mkdir(parents=True, exist_ok=True)
         closed_path = CLOSED_DIR / f"{session_id}.json"
         os.rename(path, closed_path)
+
+    # Terminal state reached: delete the per-prompt event store (fingerprints,
+    # cwd, signal evidence). Failure is tolerated — the hook's GC pass
+    # converges any leftover dir on a later prompt.
+    shutil.rmtree(EVENTS_DIR / session_id, ignore_errors=True)
 
     print(json.dumps({"ended": True, "session_id": session_id, "duration": session["duration_minutes"]}))
 
@@ -851,6 +886,9 @@ def compute_daily(date_str):
         for p in s.get("prompts", []):
             if p.get("task_id"):
                 workstreams.add(p["task_id"])
+        # Closed sessions have no event store — their task_ids live in the
+        # aggregates snapshot taken at finalization.
+        workstreams.update(s.get("aggregates", {}).get("task_ids", []))
 
     breaks_taken = sum(1 for n in all_nudges if n.get("response") == "break_taken")
     compliance = breaks_taken / len(all_nudges) if all_nudges else None

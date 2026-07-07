@@ -24,9 +24,12 @@ form degrades.
 - **Session check-ins** — a two-question energy/affect check at session end,
   accumulating into daily and weekly retros you can reflect on.
 
-Everything runs locally. **All data stays in `~/.tank/` on your machine —
+Everything runs locally. **Your data lives in `~/.tank/` on your machine —
 there is no network code in this repository, and you can audit that claim in
-a few minutes: it's three Python files, stdlib only.**
+a few minutes: it's three Python files, stdlib only.** (The one write outside
+`~/.tank/`: with your consent at first run, two narrowly-scoped allowlist
+rules are added to `~/.claude/settings.json` so the skill can operate
+silently.)
 
 ## Install
 
@@ -82,14 +85,12 @@ Requirements: Python 3.11+, stdlib only. No dependencies to install.
 
 ## First run
 
-Send any prompt. The skill walks you through a two-step onboarding:
+Send any prompt. The skill asks one setup question:
 
-1. **Permissions.** For silent operation it needs two allowlist rules in
-   `~/.claude/settings.json` (read `~/.tank/**`, run its state manager).
-   It can add them for you — one approval prompt, then silence — or print
-   them for you to paste.
-2. **Tracking mode.** Fingerprint keywords (default, zero token cost) or
-   semantic summaries. Fingerprint is fine for most people.
+**Permissions.** For silent operation it needs two allowlist rules in
+`~/.claude/settings.json` (read `~/.tank/**`, run its state manager).
+It can add them for you — one approval prompt, then silence — or print
+them for you to paste.
 
 ## Commands
 
@@ -117,12 +118,23 @@ tank=$(python3 ~/.claude/skills/tank-hard-hat/scripts/statusline.py 2>/dev/null)
 ~/.tank/
   config.json     Skill configuration
   sessions/       One JSON file per session
+  events/         Per-prompt working memory for open sessions (see below)
   dailies/        Computed daily rollups
   retro/          Computed weekly retros
 ```
 
-Plain JSON, human-readable, local-only. Delete `~/.tank/` at any time to
-erase all of it.
+While a session is open, the hook writes a fingerprint of each prompt to
+`events/`: 3–6 content keywords, any file paths you mentioned, and your
+working directory. Secret-shaped tokens (long hex or mixed letter+digit
+runs — pasted API keys, hashes) are dropped before anything touches disk.
+Human-readable secrets are not detectable that way, so treat prompts like
+anything else that reaches your filesystem.
+
+**Fingerprints do not outlive the session.** When a session closes, its
+aggregate counts are snapshotted onto the session record and its `events/`
+entry is deleted. What persists is counts, trends, topic slugs, and your
+check-ins — plain JSON, human-readable, local-only. Delete `~/.tank/` at
+any time to erase all of it.
 
 ## Token cost
 

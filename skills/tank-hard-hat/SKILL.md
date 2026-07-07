@@ -65,8 +65,7 @@ suggestions — never improvise a ritual, nudge, or help text from memory.
 On first ever run (no `~/.tank/` directory exists), run the onboarding flow
 in `references/rituals.md` § Onboarding — it shows the setup message *before*
 creating `~/.tank/`, then offers to allowlist the two permission rules the
-skill needs for silent operation. If an existing config lacks the
-`prompt_tracking_mode` key, run § Migration instead (fires once).
+skill needs for silent operation.
 
 **Silent file operations:** All reads and writes to `~/.tank/` should be done
 silently — the user should only see interventions and nudges, never the
@@ -284,16 +283,21 @@ on a closed session means the wrap-up was never collected.
 ## Hook-Computed Data
 
 The hook computes and stores prompt content data mechanically — Claude reads
-the outcomes from session data and never computes or stores them. Tracking
-mode (`prompt_tracking_mode` in config): `fingerprint` (default) extracts a
-keyword fingerprint per prompt; `summary` currently behaves identically
-(semantic summaries are a future retro-time enrichment — nothing writes
-`content_summary` per-prompt, and Claude must not start). Retry detection
-runs on fingerprints in both modes: >= 0.6 similarity against the last 5
-prompts classifies as `retry`, increments `retry_loop_count`, and 2+ retries
-in 20 minutes adds `retry_loop` to `signals_fired` — the highest-weight
-hard-boundary input. Event shape and field definitions:
-`references/data-model.md` § Per-Prompt Event.
+the outcomes from session data and never computes or stores them. Each
+prompt gets a keyword fingerprint (secret-shaped tokens are dropped before
+anything is written; a legacy `prompt_tracking_mode: "summary"` config value
+is accepted and behaves identically — nothing writes `content_summary`, and
+Claude must not start). Retry detection runs on fingerprints: >= 0.6
+similarity against the last 5 prompts classifies as `retry`, increments
+`retry_loop_count`, and 2+ retries in 20 minutes adds `retry_loop` to
+`signals_fired` — the highest-weight hard-boundary input.
+
+**Fingerprints do not outlive the session.** On the transition into `closed`
+(either edge: `end-session` or the stale sweep) the aggregates are
+snapshotted onto the session record and `events/<session_id>/` is deleted;
+a hook GC pass converges leftovers. Retros read the snapshot, never raw
+events. Event shape, field definitions, and the retention contract:
+`references/data-model.md`.
 
 ## Configuration
 

@@ -11,15 +11,23 @@ It must be fast and silent unless an intervention is needed.
 
 import json
 import re
+import shutil
 import sys
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from glob import glob
 
-# Import shared helpers from state.py to avoid duplication
+# Import shared helpers from state.py to avoid duplication. Only PURE
+# functions may be imported — path-dependent state.py code binds to state's
+# own module globals, which test loaders cannot patch through this module.
 sys.path.insert(0, str(Path(__file__).parent))
-from state import get_session_timeout, get_closing_window, derive_state
+from state import (
+    get_session_timeout,
+    get_closing_window,
+    derive_state,
+    compute_aggregates,
+)
 
 TANK_DIR = Path.home() / ".tank"
 SESSIONS_DIR = TANK_DIR / "sessions"
@@ -86,12 +94,35 @@ def extract_file_paths(text):
     return result
 
 
+_HEX_BLOB = re.compile(r'[0-9a-f]{20,}')
+
+
+def _is_secret_shaped(token):
+    """Machine-generated-looking tokens: long hex blobs, or long mixed
+    letter+digit runs (credentials, API keys, hashes). Dropping them is
+    loss-free for retry detection — a one-time random string carries no
+    retry signal — and keeps pasted secrets out of the event log. This is a
+    shape rule, not a secret detector: human-readable secrets are a
+    documentation matter, not a detection one.
+    """
+    if _HEX_BLOB.fullmatch(token):
+        return True
+    return (
+        len(token) >= 16
+        and any(c.isdigit() for c in token)
+        and any(c.isalpha() for c in token)
+    )
+
+
 def extract_keywords(text):
     """Extract 3-6 top content words from the prompt."""
     # Lowercase, split on non-alphanumeric
     words = re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', text.lower())
-    # Filter stop words and very short words
-    content_words = [w for w in words if w not in STOP_WORDS and len(w) > 2]
+    # Filter stop words, very short words, and secret-shaped tokens
+    content_words = [
+        w for w in words
+        if w not in STOP_WORDS and len(w) > 2 and not _is_secret_shaped(w)
+    ]
     # Count frequency
     freq = {}
     for w in content_words:
@@ -249,7 +280,13 @@ def is_tool_loading_prompt(text):
 
 def read_config():
     if CONFIG_PATH.exists():
-        return json.loads(CONFIG_PATH.read_text())
+        try:
+            return json.loads(CONFIG_PATH.read_text())
+        except (json.JSONDecodeError, OSError):
+            # Fail open to defaults: a partially-written config (crash,
+            # disk-full) must not turn every subsequent prompt into a
+            # traceback. The file is left for the user to repair or replace.
+            pass
     return {
         "pomodoro_interval_minutes": 60,
         "min_break_duration_minutes": 5,
@@ -320,28 +357,113 @@ def _load_session_hydrated(path):
     # even if the file predates the field (legacy derivation).
     session["state"] = derive_state(session)
 
-    log_dir = EVENTS_DIR / session_id
-    jsonl_files = sorted(log_dir.glob("*.jsonl")) if log_dir.exists() else []
-
-    if jsonl_files:
-        events = []
-        for log_path in jsonl_files:
-            text = log_path.read_text().strip()
-            for line in text.splitlines():
-                line = line.strip()
-                if line:
-                    try:
-                        events.append(json.loads(line))
-                    except json.JSONDecodeError:
-                        pass  # crash-resilient — skip malformed lines
-        # Drop legacy events written without a timestamp (pre-seeding
-        # log_prompt) — readers sort and compute gaps from it.
-        events = [e for e in events if e.get("timestamp")]
-        events.sort(key=lambda e: e["timestamp"])
+    events = _read_session_events(session_id)
+    if events is not None:
         session["prompts"] = events
     # else: fall back to session["prompts"] as-is (old format)
 
     return session
+
+
+def _read_session_events(session_id):
+    """Merged, timestamp-sorted prompt events for a session.
+
+    Returns None when no event files exist (callers fall back to the embedded
+    prompts array — old data format); otherwise the merged (possibly empty)
+    list. Legacy events without a timestamp are dropped — readers sort and
+    compute gaps from it.
+    """
+    log_dir = EVENTS_DIR / session_id
+    jsonl_files = sorted(log_dir.glob("*.jsonl")) if log_dir.exists() else []
+    if not jsonl_files:
+        return None
+    events = []
+    for log_path in jsonl_files:
+        text = log_path.read_text().strip()
+        for line in text.splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass  # crash-resilient — skip malformed lines
+    events = [e for e in events if e.get("timestamp")]
+    events.sort(key=lambda e: e["timestamp"])
+    return events
+
+
+def _read_session_signals(session_id):
+    """Layer-2 signals for a session (events/<sid>/signals/*.jsonl, merged)."""
+    signals = []
+    signals_dir = EVENTS_DIR / session_id / "signals"
+    if not signals_dir.exists():
+        return signals
+    for log_path in sorted(signals_dir.glob("*.jsonl")):
+        for line in log_path.read_text().splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    signals.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass  # crash-resilient — skip malformed lines
+    return signals
+
+
+def _snapshot_aggregates(session_id, data):
+    """Fill data["aggregates"] from the event store if no snapshot exists yet.
+
+    Returns (data, changed). Mirrors what end-session does on the explicit
+    close: the snapshot is all that dailies/retros can read once the event
+    store is deleted. An existing snapshot is never overwritten here — the
+    mechanical edges (sweep, GC) lack the checkin-time context that
+    end-session has, so the freshest deliberate snapshot wins.
+    """
+    if data.get("aggregates"):
+        return data, False
+    events = _read_session_events(session_id) or []
+    if not events:
+        return data, False
+    data["aggregates"] = compute_aggregates(
+        events, data.get("duration_minutes"), _read_session_signals(session_id)
+    )
+    return data, True
+
+
+def gc_closed_event_dirs():
+    """Delete event stores whose session reached the terminal `closed` state.
+
+    Convergence pass: covers the crash window (session finalized but the
+    rmtree never ran) and legacy accumulation from before deletion existed.
+    Fingerprints are working memory for an open session — nothing
+    prompt-derived outlives the session except the aggregates snapshot.
+    Open and `closing` sessions keep their events (`closing` is escapable via
+    reopen-session); a dir with no session file anywhere is left alone, since
+    a concurrent instance may be mid-creation.
+    """
+    if not EVENTS_DIR.exists():
+        return
+    for d in sorted(EVENTS_DIR.iterdir()):
+        if not d.is_dir():
+            continue
+        sid = d.name
+        path = SESSIONS_DIR / f"{sid}.json"
+        if not path.exists():
+            path = CLOSED_DIR / f"{sid}.json"
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if derive_state(data) != "closed":
+            continue
+        data, changed = _snapshot_aggregates(sid, data)
+        if changed:
+            try:
+                path.write_text(json.dumps(data, indent=2))
+            except OSError:
+                continue  # keep the events rather than lose the only copy
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def create_session():
@@ -457,6 +579,10 @@ def sweep_stale_closing_sessions(paths, config, now):
         # session (see _check_reopen_window).
         data["swept_at"] = now.isoformat()
         data["reopen_offer_pending"] = True
+        # Finalization edge into `closed`: snapshot aggregates (unless one
+        # was already persisted while open) so dailies/retros keep their
+        # counts after the event store is deleted below.
+        data, _ = _snapshot_aggregates(data.get("session_id", p.stem), data)
         try:
             # State is written before the rename (crash-safe: a "closed" file
             # at top level is self-describing and migration converges it).
@@ -465,6 +591,9 @@ def sweep_stale_closing_sessions(paths, config, now):
             os.rename(p, CLOSED_DIR / p.name)
         except OSError:
             continue
+        # Terminal state reached: the per-prompt event store does not outlive
+        # the session. Failure tolerated — gc_closed_event_dirs converges it.
+        shutil.rmtree(EVENTS_DIR / data.get("session_id", p.stem), ignore_errors=True)
         swept_signals.append({
             "type": "stale_closing_finalized",
             "session_id": data.get("session_id", p.stem),
@@ -952,6 +1081,10 @@ def main():
 
     config = read_config()
     now = datetime.now().astimezone()
+
+    # Convergence GC before any session logic: event stores of closed
+    # sessions are deleted (crash leftovers, legacy accumulation).
+    gc_closed_event_dirs()
 
     # Get or create session
     path, session, session_signal = get_or_create_session(config, now=now)

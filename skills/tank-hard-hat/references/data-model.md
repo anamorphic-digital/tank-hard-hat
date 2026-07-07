@@ -34,6 +34,20 @@ Events are stored in `~/.tank/events/<session_id>/<instance_id>.jsonl`.
   `"unknown"` — a visible sentinel, never `"default"` (which was the pre-#7
   placeholder).
 
+### Retention: events do not outlive the session
+
+The event store is working memory for the *open* session — retry similarity
+and hard-boundary scoring, both session-scoped. On the transition into the
+terminal `closed` state (either edge: `end-session`, or the hook's
+stale-closing sweep) the aggregates are snapshotted onto the session record
+(including `task_ids`, so daily workstream breadth survives) and
+`events/<session_id>/` — prompt fingerprints, `cwd`, and the `signals/`
+evidence — is deleted. A per-prompt GC pass in the hook converges crash
+leftovers and legacy dirs. `closing` sessions keep their events: that state
+is escapable via `reopen-session`. Secret-shaped tokens (long hex blobs,
+long mixed letter+digit runs) are dropped by the fingerprinter before events
+are ever written.
+
 ### Backward compatibility
 
 Sessions recorded before this layout was introduced store events directly in
