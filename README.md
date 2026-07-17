@@ -2,27 +2,44 @@
 
 **Hard hat for your brain.** A Claude Code skill that monitors stress and
 recovery during AI-paired coding — it nudges breaks at natural seams and flags
-diminishing returns before you feel them. Grounded in the Tank stress-recovery
-framework.
+diminishing returns before you feel them. Grounded in the [TANK Fuel-Gauge-Terrain
+framework](https://www.thisisyourtank.com/the-fuel-gauge-terrain-framework-burnout-prevention).
 
-AI-assisted coding is more productive, and more draining. The dangerous state
-isn't frustration — it's *pleasurable overextension*: flow feels good while it
-draws down your reserves. Tank Hard Hat watches for the boundary between
-"being in the zone" and "wanting to stay in the zone", and speaks up before
-form degrades.
+AI-assisted coding is more productive, and more draining. When your
+capacity is running low, it can cause distress: tired and unable to focus,
+your prompts get vaguer, the output gets worse, and the retries drain
+faster and buy nothing — a spiral that runs below your awareness, because
+depletion degrades the very gauge that should catch it. When it's running
+high, the trap is the opposite — *pleasurable overextension*: the signal
+heard but re-read as "this is fun and there is more in the tank, let's
+keep going". An AI pair that never tires supplies none of the seams or
+nudges that a human pair would. This skill watches for both.
+
+The skill follows a systems approach. See
+[SKILL.md](skills/tank-hard-hat/SKILL.md) for the mental model — it's the
+briefing the skill itself runs on, and the system it describes is you.
 
 ## What it does
 
-- **Break rhythm** — a soft nudge at ~60 minutes of continuous work, timed to
-  natural seams (a passing test, a commit) rather than mid-thought.
+- **Goal tether** — asks what you're working on at session start and holds
+  that as the corral for scope. When work drifts, the cue names both ends —
+  declared goal, observed drift — and re-declaring the goal is always a valid
+  answer: updating the corral is you steering, not escaping.
+- **Break rhythm** — the seam a human pair would force and an AI never does:
+  a soft nudge at ~60 minutes of continuous work, timed to natural pauses (a
+  passing test, a commit) rather than mid-thought.
 - **Diminishing-returns detection** — behavioural signals (retry loops, scope
-  creep, narrowing curiosity) scored over a rolling window, validated before
-  ever surfacing. A wrong call loses your trust; the skill is built to miss an
-  intervention rather than fire a false one.
+  creep, narrowing curiosity) scored over a rolling window and validated
+  before ever surfacing. Every fire states the specific observations behind
+  it; if the evidence can't be named, it doesn't fire. A wrong call loses
+  your trust; the skill is built to miss an intervention rather than fire a
+  false one.
 - **Overwhelm response** — if you say you're maxed out, it stops
   problem-solving and points you at a real break. Immediately, no heuristics.
-- **Session check-ins** — a two-question energy/affect check at session end,
-  accumulating into daily and weekly retros you can reflect on.
+- **Check-ins** — a two-question energy/affect check at session start
+  (calibration) and session end (review), accumulating into daily rollups.
+  Over time, cues that name their evidence retrain your own gauge — the
+  skill counts fewer fires per week as success, not more.
 
 Everything runs locally. **Your data lives in `~/.tank/` on your machine —
 there is no network code in this repository, and you can audit that claim in
@@ -92,6 +109,13 @@ Send any prompt. The skill asks one setup question:
 It can add them for you — one approval prompt, then silence — or print
 them for you to paste.
 
+From then on, each session opens with a small ritual — your goal, then a
+two-number energy/affect check-in — and closes with the same two questions.
+That start-to-end pair is the skill's calibration: state and limits declared
+up front, a review that closes the loop at the end. Accepting its nudges (or
+muting them with `quiet`) is your standing permission to interrupt, revocable
+per session.
+
 ## Commands
 
 | Command | What it does |
@@ -116,11 +140,11 @@ tank=$(python3 ~/.claude/skills/tank-hard-hat/scripts/statusline.py 2>/dev/null)
 
 ```
 ~/.tank/
-  config.json     Skill configuration
-  sessions/       One JSON file per session
-  events/         Per-prompt working memory for open sessions (see below)
-  dailies/        Computed daily rollups
-  retro/          Computed weekly retros
+  config.json       Skill configuration
+  sessions/         One JSON file per open session (goals, check-ins)
+    closed/         Finished sessions, moved here at wrap-up
+  events/           Per-prompt working memory for open sessions (see below)
+  dailies/          Computed daily rollups
 ```
 
 While a session is open, the hook writes a fingerprint of each prompt to

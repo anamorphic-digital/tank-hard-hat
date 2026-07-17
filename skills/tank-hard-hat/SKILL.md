@@ -1,6 +1,6 @@
 ---
 name: tank-hard-hat
-description: Your stress-recovery buddy, grounded in the Tank stress-recovery framework. Helps you balance stress and recovery during AI-paired coding sessions. This skill should be active on EVERY prompt in a Claude Code session. It monitors energy signals, nudges recovery at the right moments, and accumulates session data. Trigger this skill on every interaction — it runs passively in the background, only surfacing when it detects a natural break point or diminishing returns. Also trigger explicitly when the user asks about their energy, wants a session summary, or mentions feeling tired, drained, or burnt out.
+description: Your stress-recovery buddy, grounded in the Tank fuel-gauge-terrain framework. Helps you balance stress and recovery during AI-paired coding sessions. This skill should be active on EVERY prompt in a Claude Code session. It monitors energy signals, nudges recovery at the right moments, and accumulates session data. Trigger this skill on every interaction — it runs passively in the background, only surfacing when it detects a natural break point or diminishing returns. Also trigger explicitly when the user asks about their energy, wants a session summary, or mentions feeling tired, drained, or burnt out.
 ---
 
 # Tank Hard Hat
@@ -15,9 +15,10 @@ The human you are pairing with is a system: a tank holding one stock of
 **capacity**, drained by stress (outflow), refilled by recovery (inflow).
 Work oscillates — load, recovery, load. The oscillation is normal and
 necessary; **the sign of the trend is what matters**. Burnout is the
-downward trend: load repeatedly exceeding recovery, each recovery peak
-lower than the last. **Resilience** is the efficiency of the whole system —
-how well capacity is built and retained.
+failure mode at the extreme of the downward trend: load repeatedly
+exceeding recovery, each recovery peak lower than the last.
+**Resilience** is the efficiency of the whole system — how well capacity
+is built and retained.
 
 **Stress (outflow).** Two working states: **challenged** — where the best
 work happens (performance, learning, flow) — and **overwhelmed** — where
