@@ -413,7 +413,7 @@ def _snapshot_aggregates(session_id, data):
     """Fill data["aggregates"] from the event store if no snapshot exists yet.
 
     Returns (data, changed). Mirrors what end-session does on the explicit
-    close: the snapshot is all that dailies/retros can read once the event
+    close: the snapshot is all that dailies can read once the event
     store is deleted. An existing snapshot is never overwritten here — the
     mechanical edges (sweep, GC) lack the checkin-time context that
     end-session has, so the freshest deliberate snapshot wins.
@@ -580,7 +580,7 @@ def sweep_stale_closing_sessions(paths, config, now):
         data["swept_at"] = now.isoformat()
         data["reopen_offer_pending"] = True
         # Finalization edge into `closed`: snapshot aggregates (unless one
-        # was already persisted while open) so dailies/retros keep their
+        # was already persisted while open) so dailies keep their
         # counts after the event store is deleted below.
         data, _ = _snapshot_aggregates(data.get("session_id", p.stem), data)
         try:

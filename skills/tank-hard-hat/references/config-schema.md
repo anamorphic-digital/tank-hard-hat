@@ -17,7 +17,6 @@ Default config file: `~/.tank/config.json`
   },
   "timezone": "Australia/Sydney",
   "recovery_suggestions_enabled": true,
-  "retro_cadence": "weekly",
   "onboarding_complete": false,
   "prompt_tracking_mode": "fingerprint"
 }
@@ -66,7 +65,7 @@ Controls how much the skill surfaces information unprompted.
 This should adapt over time based on user behaviour. If the user consistently takes breaks before the pomodoro fires, the skill can suggest reducing intrusiveness.
 
 ### work_hours
-Used for boundary crossing detection. Sessions starting before `start` or ending after `end` are flagged in the daily/retro data.
+Used for boundary crossing detection. Sessions starting before `start` or ending after `end` are flagged in the daily data.
 - Format: 24-hour time string
 - Set to the user's typical working window, not a prescription.
 
@@ -78,15 +77,10 @@ Whether the hard boundary nudge includes personalised recovery suggestions.
 - Default: true
 - Future: the skill could learn which activities the user finds restorative and personalise this.
 
-### retro_cadence
-How often the retro rollup is generated.
-- `"weekly"` (default) or `"fortnightly"`
-
 ### onboarding_complete
 Set to true after the first-run onboarding message is shown. Prevents it from showing again.
 
 ### prompt_tracking_mode
 How prompt content is tracked for pattern detection (retries, narrowing curiosity, etc.).
-- `"fingerprint"` (default): stores a compact keyword object per prompt — lightweight, zero token cost.
-- `"summary"`: stores a one-line intent summary per prompt — richer pattern detection, useful for weekly retro overviews.
-- Only one mode is active at a time. Only the corresponding field (`content_fingerprint` or `content_summary`) is populated on each prompt event.
+- `"fingerprint"` (default, and the only implemented mode): stores a compact keyword object per prompt — lightweight, zero token cost.
+- `"summary"` is accepted as a legacy value and behaves identically to `"fingerprint"`: `content_fingerprint` is still populated (retry detection depends on it) and nothing writes `content_summary`. Do not offer it as a choice.

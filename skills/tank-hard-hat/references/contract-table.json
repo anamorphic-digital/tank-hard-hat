@@ -7,7 +7,7 @@
       "fields": ["session_id"],
       "ritual": "startup ritual (goal + 2x2 start_checkin)",
       "commands": [],
-      "forbids": ["pomodoro on first prompt", "hard boundary on first prompt"],
+      "forbids": ["start-session (the hook already created the session)", "pomodoro on first prompt", "hard boundary on first prompt"],
       "eval_type": "live"
     },
     {

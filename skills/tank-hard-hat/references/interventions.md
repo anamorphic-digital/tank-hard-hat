@@ -1,9 +1,12 @@
 # Intervention Procedures and Formats
 
 The pomodoro nudge, the full hard-boundary check, and their exact output
-formats. SKILL.md's Intervention Logic section says *when* these layers
+formats. SKILL.md's Intervention Layers section says *when* these layers
 engage; this file says *how* to run them. The boxed formats are contracts —
 reproduce them exactly, do not improvise.
+
+Both layers are skill-loop cues (SKILL.md § The Loops): they name their
+evidence, land on the human's gauge, and leave the decision with the human.
 
 ## Layer 1: Pomodoro Nudge
 
@@ -16,10 +19,17 @@ Format:
 ───────────────────────────────────────
 ```
 
-**User response handling:**
-- User takes a break (gap >= 5 min before next prompt): log as `break_taken`
-- User continues immediately: log as `break_skipped`, do not nag
-- Break skips feed into hard boundary calculus
+**Outcome handling — the hook owns it.** The hook records the nudge and
+resolves its outcome mechanically: a 5+ minute gap before the next prompt
+resolves it as `break_taken`; an immediate continuation resolves it as
+`break_skipped`. You never write these records. Skips feed the
+hard-boundary calculus; they are never nagged about.
+
+**If the user pushes back on the nudge** ("not now", "I'm mid-thought"):
+hold ground once, lightly — one beat that makes the override real ("Fair —
+though that's the third skip today. Your call.") — then release genuinely.
+Never moralize the override, and never re-raise it within the same
+interval.
 
 ## Layer 2: Hard Boundary Check
 
@@ -76,7 +86,10 @@ is ambiguous, do not intervene."
 ```
 
 The evidence line MUST be accurate. If you cannot state specific, verifiable
-observations, do not fire the hard nudge.
+observations, do not fire the hard nudge (conduct rule 2: cues name their
+evidence — an unexplained nudge trains nothing and risks landing as a
+verdict). If the user overrides a fired nudge, hold ground once, lightly,
+then release genuinely — never moralize.
 
 ### Detecting content-based signals
 
@@ -103,7 +116,7 @@ evidence comes from:
 - **Prompt tone shift** — lagging signal (terse, frustrated language);
   already past the ideal intervention point when it appears.
 
-Note: `specificity_score` is stored for retro descriptive data but is
+Note: `specificity_score` is stored as descriptive data but is
 **retired as a signal** — raw specificity drifts in meaning as session
 context accumulates; actual communication failure is captured by retry_loop
 and diminishing_returns instead.

@@ -33,8 +33,8 @@ tasks after 45+ minutes.
 "doing more" feel accessible, leading to pleasurable overextension.
 
 ### ~~Declining Prompt Specificity~~ (Retired)
-**Status:** Removed as a signal. Retained as descriptive data (`specificity_score`)
-for retros only.
+**Status:** Removed as a signal. Retained as descriptive data
+(`specificity_score`) only.
 **Why retired:** Raw specificity scores drift in meaning as session context
 accumulates. A terse prompt early in a session is genuinely vague; the same
 terseness 30 prompts in may be precise because shared context makes it
@@ -87,7 +87,7 @@ against the user's historical average (computed from dailies).
 **Weight:** 1
 **Why it matters:** The ambient, always-advanceable quality of AI work erodes
 boundaries between work and non-work. A pattern of boundary creep over days
-or weeks is a strong burnout signal in the retro view.
+or weeks is a strong long-term burnout signal.
 
 ## Lagging Signals
 

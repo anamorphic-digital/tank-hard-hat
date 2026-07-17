@@ -15,8 +15,6 @@
                            # instance_id = Claude Code's session_id from the hook payload
   dailies/
     YYYY-MM-DD.json        # daily rollup
-  retro/
-    YYYY-WNN.json          # weekly rollup
 ```
 
 ## Event Log Layout
@@ -96,7 +94,7 @@ Logged on every prompt. Written to the per-instance event log.
 - **cwd**: Working directory of the Claude Code instance at the time of the prompt.
   From the hook payload's `cwd` field. Absent if not provided by the runtime.
 - **prompt_length_tokens**: Approximate token count (word count * 1.3)
-- **specificity_score**: 0.0-1.0 heuristic based on: file references (+0.2 each, max 0.4), line numbers (+0.1), technical terms (+0.1), concrete nouns (+0.1), length > 50 tokens (+0.1), question marks (+0.1). Capped at 1.0. **Note:** This score is descriptive data for retros only — it does not drive signals. Raw specificity drifts in meaning as session context accumulates (a terse prompt late in a session may be precise, not vague). Actual communication failure is captured by retry_loop and diminishing_returns signals instead.
+- **specificity_score**: 0.0-1.0 heuristic based on: file references (+0.2 each, max 0.4), line numbers (+0.1), technical terms (+0.1), concrete nouns (+0.1), length > 50 tokens (+0.1), question marks (+0.1). Capped at 1.0. **Note:** This score is descriptive data only — it does not drive signals. Raw specificity drifts in meaning as session context accumulates (a terse prompt late in a session may be precise, not vague). Actual communication failure is captured by retry_loop and diminishing_returns signals instead.
 - **task_id**: Inferred from context — file path, branch, or topic keyword. Used to track workstreams
 - **classification**: `"new_task"` | `"continuation"` | `"retry"` | `"refinement"`
   - `new_task`: different task_id from previous prompt
@@ -108,13 +106,12 @@ Logged on every prompt. Written to the per-instance event log.
 - **has_questions**: Whether the prompt contains question marks or exploratory language
 - **retry_similarity**: 0.0-1.0 similarity score against the most similar of the last 5 prompts
 - **signals_fired**: Array of signal names detected on this prompt (e.g. `["retry_loop", "decision_deferral"]`)
-- **content_fingerprint**: (fingerprint mode only) Compact keyword object extracted from the prompt. Contains:
+- **content_fingerprint**: Compact keyword object extracted from the prompt. Always populated, regardless of `prompt_tracking_mode` — retry detection depends on it. Contains:
   - `keywords`: top content words from the prompt (3-6 items)
   - `files`: file paths mentioned in the prompt
   - `intent_verb`: the primary action verb (e.g. "fix", "add", "list", "debug")
   - `target`: short phrase describing what the prompt is about
-  - Set to `null` when `prompt_tracking_mode` is `"summary"`
-- **content_summary**: (summary mode only) One-line intent summary of the prompt (e.g. "Fix auth middleware session handling"). Set to `null` when `prompt_tracking_mode` is `"fingerprint"`
+- **content_summary**: Legacy field, always `null` — nothing writes it. Kept in the schema so old event logs that carry it still parse.
 
 ## Session File
 
@@ -356,55 +353,6 @@ Computed from all session files for that day.
 - **hard_boundary_signals**: union of all signals across the day's hard nudges
 - **workstream_breadth**: distinct task_ids across all sessions
 - **first_session_start / last_session_end**: for boundary creep detection (compare across days)
-
-## Weekly/Fortnightly Retro
-
-One file per week: `~/.tank/retro/YYYY-WNN.json`
-
-```json
-{
-  "week": "2026-W11",
-  "period_start": "2026-03-09",
-  "period_end": "2026-03-15",
-  "days_active": 5,
-  "total_active_minutes": 1890,
-  "avg_daily_active_minutes": 378,
-  "trends": {
-    "session_length": "increasing",
-    "break_compliance": "decreasing",
-    "scope_breadth": "stable",
-    "boundary_creep": "mild"
-  },
-  "quadrant_distribution": {
-    "in_the_zone": 3,
-    "anxious": 1,
-    "calm": 4,
-    "drained": 2
-  },
-  "recovery_debt_score": 4.2,
-  "patterns": [
-    "Sessions getting 15 min longer on average vs last week",
-    "Friday sessions ending 90 min later than Monday",
-    "3 of 5 hard nudges were retry-loop related"
-  ],
-  "daily_summaries": [ /* refs to daily files */ ]
-}
-```
-
-### Recovery Debt Score
-
-A running heuristic (0-10 scale, higher = more debt):
-
-- +1 for each pomodoro break skipped
-- +2 for each hard boundary ignored (continued without break)
-- +1 for each session ending in "drained" quadrant
-- +0.5 for each day with boundary creep (start earlier or end later than baseline)
-- -1 for each session ending in "calm" quadrant
-- -0.5 for each pomodoro break taken that lasted 10+ minutes
-- Floor at 0, cap at 10
-
-This is deliberately simple and meant to be a conversation starter for the retro,
-not a precise measurement.
 
 ## Quadrant Mapping
 

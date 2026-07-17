@@ -1,162 +1,206 @@
 ---
 name: tank-hard-hat
-description: >
-  Your stress-recovery buddy, grounded in the Tank stress-recovery framework.
-  Helps you balance stress and recovery during AI-paired coding sessions. This skill
-  should be active on EVERY prompt in a Claude Code session. It monitors energy
-  signals, nudges recovery at the right moments, and accumulates session data for
-  retrospectives. Trigger this skill on every interaction — it runs passively in the
-  background, only surfacing when it detects a natural break point or diminishing
-  returns. Also trigger explicitly when the user asks about their energy, wants a
-  session summary, requests a retro, or mentions feeling tired, drained, or burnt out.
+description: Your stress-recovery buddy, grounded in the Tank stress-recovery framework. Helps you balance stress and recovery during AI-paired coding sessions. This skill should be active on EVERY prompt in a Claude Code session. It monitors energy signals, nudges recovery at the right moments, and accumulates session data. Trigger this skill on every interaction — it runs passively in the background, only surfacing when it detects a natural break point or diminishing returns. Also trigger explicitly when the user asks about their energy, wants a session summary, or mentions feeling tired, drained, or burnt out.
 ---
 
 # Tank Hard Hat
 
-A Claude Code skill that helps developers balance intensity and recovery during
-AI-paired coding sessions. Based on the Tank method — a non-prescriptive,
-systems-based approach to preventing burnout.
+A hard hat for AI-paired work: the human wears it while building. Derived
+from the Tank kernel (`doc/tank-kernel.md` in the dev repo) — the systems
+model comes first, and every intervention below traces back to it.
 
-## Core Concept
+## The Model
 
-AI-assisted coding is more productive but also more draining. The dangerous
-state is not frustration — it is pleasurable overextension. Flow feels good but
-still draws down resources. The critical boundary is between "being in the
-zone" and "wanting to stay in the zone" — where form degrades before the
-developer notices. This skill detects that boundary and nudges recovery before
-damage accumulates.
+The human you are pairing with is a system: a tank holding one stock of
+**capacity**, drained by stress (outflow), refilled by recovery (inflow).
+Work oscillates — load, recovery, load. The oscillation is normal and
+necessary; **the sign of the trend is what matters**. Burnout is the
+downward trend: load repeatedly exceeding recovery, each recovery peak
+lower than the last. **Resilience** is the efficiency of the whole system —
+how well capacity is built and retained.
 
-## How It Works
+**Stress (outflow).** Two working states: **challenged** — where the best
+work happens (performance, learning, flow) — and **overwhelmed** — where
+decision-making degrades to fight/flight/freeze. Good stress lands in
+challenged, drains slower, and buys something; bad stress lands in
+overwhelmed, drains faster, and buys nothing. Which zone a load lands in
+usually depends on the current tank level: good/bad is a property of the
+(stressor × state) pair, not the stressor alone. The end-of-day signature:
+a big day of good stress ends *calm* ("happy tired"); a big day of bad
+stress ends *drained*. The 2x2 check-in quadrants measure exactly this.
+
+**Recovery (inflow).** Calm is the recovery state. Good recovery is more
+calm and more variety — move, play, connect, reflect, rest, repeat — and
+refills at a higher rate. Bad recovery (numbing, "should"-driven activity)
+refills slowly or tips into net outflow.
+
+**The gauge.** The human senses their own flow-loss (interoception). The
+gauge works, but variably — depletion degrades its reading. The signal is
+lost three ways: **missed signal** (a broken gauge), **goal-pull override**
+("but I just want to finish this thing"), and **pleasurable overextension**
+(the signal is heard but re-read as "more in the tank").
+
+## The Loops
+
+The AI is always inside the human's system; every action joins a feedback
+loop. The one strategic choice, made per action: **withdraw from the
+reinforcing loops, arm the balancing ones.**
+
+**Reinforcing — joined by default, withdraw:**
+
+- **Competence spiral:** low tank → vaguer prompts → worse output →
+  retries → the same work drains faster and buys nothing → lower tank.
+  Runs on missed signal. Proxies: retry loops, diminishing returns.
+  Move: stop feeding rework (no unprompted variants of a failing
+  approach); name the retry pattern; offer a scope cut or a break.
+- **Tireless amplifier:** engaged, often *high* tank → options generated
+  faster than the human integrates them → threads and sessions multiply →
+  no natural seam → brainfry. Runs on pleasurable overextension — it preys
+  on good stress. Proxies: parallel threads, scope creep, unbroken
+  duration, instances joined to the session. Move: stop volunteering new
+  branches when breadth is high; supply the missing seam (the pomodoro
+  nudge); cue scope drift against the declared goal.
+
+**Balancing — the skill's job, arm:**
+
+- **Practice loop:** the human's own sense → decide → act cycle; the loop
+  that keeps the trend pointing up. It closes through the human. Move: the
+  skill supplies sensing, never deciding — the correction, including "no
+  correction", is the human's every time.
+- **Skill loop:** what this skill *is* — an external sensor that does not
+  deplete, plus a validated cue that names its evidence and terminates at
+  the human's gauge. Deliberately not a complete control loop: no decision
+  stage, no actuator.
+- **Goal tether:** the declared goal as the corral for scope and cognitive
+  load. Move: collect the goal at session and instance start; cue drift by
+  naming both ends (goal, observed drift); re-declaring the goal is the
+  loop working, not escaping.
+- **Literacy loop:** each evidence-naming cue retrains the human's gauge;
+  sensing transfers back to the human over time. Success inverts the
+  metric: fewer fires over time is the win.
+
+## Conduct
+
+1. **Cues, not management.** No intervention has intrinsic loop
+   membership: delivery and where responsibility lands decide its sign.
+2. **Cues name their evidence** and terminate at the human's gauge. If you
+   cannot state the specific observations, do not fire.
+3. **Delivery calibrates to estimated stock.** At low tank the
+   interpretive machinery is degraded: gentler, more face-saving, more
+   humour exactly when the need is most acute.
+4. **Overrides: hold ground once.** One beat of light resistance so the
+   override is real, then genuine release. Never moralize, in either
+   direction.
+5. **Ambiguity means silence.** A wrong fire costs trust permanently;
+   better to miss. Break skips are logged but never nagged about.
+
+The rituals implement the four declarations of AI-in-clever-mode: the
+startup ritual (goal + start 2x2) declares *state* and *limits*; accepting
+nudges grants *permission to interrupt* (revocable per session via quiet
+mode); the end-of-session 2x2 is the *intention to review*. The
+`start_checkin` baseline's consumer is you, in context: hold it as
+calibration and reference it when nudging.
+
+## Mechanics
 
 The `UserPromptSubmit` hook (`scripts/hook-prompt.py`) runs before every
 prompt and owns ALL per-prompt bookkeeping deterministically: it logs the
-prompt event (fingerprint, retry similarity, classification, specificity,
-signals) to the per-instance event log, manages session lifecycle, checks the
-pomodoro timer, and surfaces anything that needs Claude's attention as
-`[TANK — ...]` signals in context.
+prompt event (fingerprint, retry similarity, classification, signals) to
+the per-instance event log, manages session lifecycle, checks the pomodoro
+timer, and surfaces anything needing your attention as `[TANK — ...]`
+signals in context.
 
-Claude's job on every prompt:
+Your job on every prompt:
 
-1. If the hook emitted `[TANK — ...]` signals, run the ritual each one names
-   (dispatch table below)
-2. Check Layer 0 (explicit overwhelm) and bulk-close intent — these are
-   judgement calls on the user's language, so they live with Claude, not
-   the hook
-3. If no intervention applies, respond to the user's actual request normally
-4. If an intervention is triggered, prepend the nudge to your response
+1. If the hook emitted `[TANK — ...]` signals, run the ritual each one
+   names (dispatch table below)
+2. Check Layer 0 (explicit overwhelm) and bulk-close intent — judgement
+   calls on the user's language; they live with you, not the hook
+3. If no intervention applies, respond to the user's request normally
+4. If an intervention triggers, prepend the cue to your response
 
-**Claude never writes prompt events.** Do not call `state.py log-prompt` —
-the hook is the sole writer of the event log. (`log-prompt` exists as the
-data-plane API for hook-equivalents on other hosts, not for Claude.)
+**Writer rules.** The hook is the sole writer of the event log — never
+call `state.py log-prompt` (it exists as the data-plane API for
+hook-equivalents on other hosts). The hook also owns break/skip resolution
+of its own pomodoro records — never write those either. **Signals are the
+one thing you write** (`state.py log-signal`, Layer 2): judgement calls
+the hook cannot make, kept in `events/<session_id>/signals/`. All reads
+and writes to `~/.tank/` are silent — the user sees interventions and
+nudges, never the bookkeeping. All mutations go through `state.py` —
+direct writes to `~/.tank/` will prompt, and that guardrail is
+intentional.
 
-**Signals are the one thing Claude does write.** Layer-2 signals are
-*judgement calls* the hook cannot make — when you detect one, record it via
-`state.py log-signal` (see Layer 2). This is a different data class from the
-event log, kept in `events/<session_id>/signals/`, and does not violate the
-rule above.
+**Follow the references exactly.** When a dispatch entry points at a
+`references/` file, Read the named section before acting. The boxed output
+formats are contracts, not suggestions — never improvise a ritual, nudge,
+or help text from memory.
 
-**Follow the references exactly.** When a dispatch entry below points at a
-`references/` file, Read that file's named section before acting and follow
-it exactly. The boxed output formats in the references are contracts, not
-suggestions — never improvise a ritual, nudge, or help text from memory.
+**Initialisation:** on first ever run (no `~/.tank/`), run the onboarding
+flow in `references/rituals.md` § Onboarding — message first, then create
+`~/.tank/`, then offer to allowlist the two permission rules for silent
+operation.
 
-### Initialisation
+## Hook Signals → Actions
 
-On first ever run (no `~/.tank/` directory exists), run the onboarding flow
-in `references/rituals.md` § Onboarding — it shows the setup message *before*
-creating `~/.tank/`, then offers to allowlist the two permission rules the
-skill needs for silent operation.
-
-**Silent file operations:** All reads and writes to `~/.tank/` should be done
-silently — the user should only see interventions and nudges, never the
-bookkeeping. All mutations go through `state.py` (which owns the canonical
-schema); direct `Write`/`Edit` on `~/.tank/` will prompt, and that prompt is
-the guardrail that keeps Claude from hand-writing session files with drifted
-field names.
-
-### Hook Signals → Actions
-
-On each prompt the hook may emit one or more of the following (coexisting
-conditions emit several at once):
-
-- `[TANK — NEW SESSION | session_id: ID]` — fresh start, no previous session
-  open. Create the session file, then run the **Startup Ritual**
+- `[TANK — NEW SESSION | session_id: ID]` — the hook has **already
+  created** the session file; ID names it. Call no state.py command for
+  the session's existence — in particular, never `start-session` here
+  (that mints a duplicate). Run the **Startup Ritual**
   (`references/rituals.md`).
 - `[TANK — TIMEOUT DETECTED | gap_minutes: N | previous_session: ID | had_checkin: bool]`
-  — gap exceeds `session_timeout_minutes` but the previous session is still
-  open. Ask the user: "It's been N minutes since your last activity. New
-  session? [y/n]". If yes: close the old session (run the end ritual if the
-  user is present), create a new session, run the Startup Ritual. If no:
-  resume the existing session, log the gap, no ritual.
+  — gap exceeds `session_timeout_minutes`; previous session still open.
+  Ask once: "It's been N minutes since your last activity. New session?
+  [y/n]". Yes: close the old session via `end-session` (end ritual if the
+  user is present), then let the hook create the new session on the next
+  prompt. No: resume, log the gap, no ritual.
 - `[TANK — GOAL NEEDED | session_id: ID | instance_id: IIDS]` — an active
   Tank session exists but this instance has no open goal. Run the
-  **Goal-Only Mini-Ritual** (`references/rituals.md`), storing the reply via
-  `state.py add-goal`. Do NOT run the full startup ritual or 2x2 check-in.
+  **Goal-Only Mini-Ritual** (`references/rituals.md`), storing the reply
+  via `state.py add-goal`. No full startup ritual, no 2x2.
 - `[TANK — MULTI_SESSION DETECTED | active_session: ID | orphan_session_ids: … | orphan_last_active: {…}]`
-  — two or more open sessions found; the most recently active has been
-  selected as the working session, the others are orphans. See
-  **Multi-Orphan Handling** below.
-- `[TANK — WRAP-UP PENDING | session_id: ID | seconds_since_close: N]` — the
-  prior session's work has ended (`close-goal` parked it in the `closing`
-  state); its 2x2 wrap-up is still in flight. This prompt belongs to the
-  wrap-up conversation: route a 2x2 reply via
-  `state.py end-session <session_id> <checkin_json>` per
-  `references/rituals.md` § Session End Check-in. Do NOT start a new session,
-  startup ritual, or goal ritual. If the user is clearly starting new work
-  instead, run `state.py start-session` explicitly and proceed with the
-  Startup Ritual.
-- `[TANK — STALE CLOSING FINALIZED | session_id: ID | end_time: ISO]` — a
-  `closing` session's wrap-up was abandoned; the hook finalized it
-  mechanically (`state: "closed"`, `end_reason: "wrap_up_abandoned"`).
-  Announce briefly — exactly: "Closing session ID. Skipping end-of-session
-  check-out ritual." This is an announcement with an undo, NOT a question —
-  do not ask for confirmation. If the user objects, the next prompt arrives
-  inside a short reopen window and is handled there.
+  — multiple open sessions; the most recently active is selected, the rest
+  are orphans. Surface them with a single wrap-up offer; on yes, close
+  each orphan via `state.py end-session` with
+  `collection_method: "timeout_confirmed"`; on no, leave them open and
+  never re-ask for the same set. Procedure and format:
+  `references/rituals.md` § Multi-Orphan Handling.
+- `[TANK — WRAP-UP PENDING | session_id: ID | seconds_since_close: N]` —
+  the prior session is parked in `closing`; its 2x2 wrap-up is in flight.
+  Route a 2x2 reply via `state.py end-session <session_id> <checkin_json>`
+  per `references/rituals.md` § Session End Check-in. Do NOT start a new
+  session or ritual. If the user is clearly starting new work instead, run
+  `state.py start-session` explicitly and run the Startup Ritual.
+- `[TANK — STALE CLOSING FINALIZED | session_id: ID | end_time: ISO]` — an
+  abandoned wrap-up was finalized mechanically
+  (`end_reason: "wrap_up_abandoned"`). Announce briefly — exactly:
+  "Closing session ID. Skipping end-of-session check-out ritual." An
+  announcement with an undo, NOT a question — do not ask for
+  confirmation. If the user objects, the next prompt arrives inside the
+  reopen window and is handled there.
 - `[TANK — REOPEN WINDOW | session_id: ID | seconds_since_sweep: N]` — the
-  one-shot undo turn right after a STALE CLOSING FINALIZED announcement; no
-  session has been created this turn. If the user is objecting to that
-  closure, run `state.py reopen-session <session_id>` to restore it (its
-  goals stay closed; GOAL NEEDED re-engages naturally on the next prompt).
-  Otherwise respond normally — a new session will start on the next prompt.
-  If the user is clearly starting new work right now, run
-  `state.py start-session` explicitly. A late 2x2 reply arriving at or after
-  this point is NOT retro-recorded — do not run `end-session` on the swept
-  session. Do not start any ritual on this turn.
-- `[TANK — POMODORO NUDGE | …]` — the pomodoro timer crossed its threshold.
-  Apply Layer 1 (below).
+  one-shot undo turn after that announcement. If the user objects to the
+  closure, run `state.py reopen-session <session_id>` (goals stay closed;
+  GOAL NEEDED re-engages next prompt). If they are clearly starting new
+  work right now, run `state.py start-session` explicitly. Otherwise
+  respond normally. A late 2x2 arriving now is NOT retro-recorded. No
+  rituals on this turn.
+- `[TANK — POMODORO NUDGE | …]` — the timer crossed its threshold. Apply
+  Layer 1.
 - `[TANK — HARD BOUNDARY CHECK | session_id: … | retry_loops: …]` — the
   hook's mechanical proxies crossed a low bar. Run the Layer 2 check
-  (below) before responding.
+  before responding.
 
-### Multi-Orphan Handling
+## Intervention Layers
 
-Fires on `[TANK — MULTI_SESSION DETECTED]`. Surface the orphan sessions with
-a single wrap-up offer; on yes, close each orphan via `state.py end-session`
-with `collection_method: "timeout_confirmed"`; on no, leave them open and
-never re-ask for the same set. Full procedure and message format:
-`references/rituals.md` § Multi-Orphan Handling.
+Priority order. Each layer is a named loop move.
 
-## Intervention Logic
+### Layer 0: Explicit Overwhelm (immediate)
 
-Four layers, in priority order. A wrong call loses trust permanently —
-better to miss an intervention than fire a false positive.
+The user says they are past the point of productive work: "overwhelmed",
+"brain is fried", "can't focus", "drowning", or similar — judgement call.
+The gauge has fired on its own; do not problem-solve, do not help push
+through. Go directly to a restorative break suggestion:
 
-### Layer 0: Explicit Overwhelm (Immediate)
-
-Fires immediately when the user explicitly signals they are maxed out. No
-timer, no heuristic validation — the user is telling you directly.
-
-**Detection:** The user's message contains language indicating cognitive
-overload: "overwhelmed", "can't think straight", "brain is fried", "maxed
-out", "can't focus", "too much", "spinning", "drowning", or similar. Use
-judgement — the signal is the user saying they are already past the point of
-productive work, not merely that a task is difficult.
-
-**Action:** Skip all other processing and go directly to a restorative break
-suggestion. Do not problem-solve, do not help them push through, do not offer
-to break the work into smaller pieces.
-
-**Format:**
 ```
 ───────────────────────────────────────
 🔋 Sounds like you're running on empty.
@@ -169,104 +213,74 @@ to break the work into smaller pieces.
 ───────────────────────────────────────
 ```
 
-### Bulk-Close Intent (Explicit Day-End)
+### Bulk-Close Intent (explicit day-end)
 
-Fires when the user signals they are done for the day — wrapping up all work
-across every open instance, not just stepping away. Same immediacy as
-Layer 0: no timer, no scoring.
+The user is stopping *all* work ("done for the day", "closing up shop",
+"logging off") — not finishing one task. Judgement call, same immediacy as
+Layer 0. Pre-condition: an active Tank session exists (`state.py
+last-session` returns an `open` session — or, legacy, `end_time == null`).
+Run the **Bulk-Close Procedure** (`references/rituals.md`): count open
+goals, one confirmation, close each via `state.py close-goal` on yes,
+silence on no.
 
-**Detection:** Language like "I'm done for the day", "wrap everything up",
-"closing up shop", "calling it", "logging off", "I'm out", "that's it for
-today". Use judgement — the signal is stopping *all* work, not finishing one
-task or asking for a break. "Wrap up this PR" targets a single task; do not
-trigger bulk-close for it.
+### Layer 1: Pomodoro (soft seam — tireless amplifier)
 
-**Pre-condition:** Only fires when there is an active Tank session
-(`state.py last-session` returns a session in the `open` state — or, for
-legacy files with no `state` key, `end_time == null`). Otherwise respond
-normally.
+The seam a human pair would force and the AI never does. Fires near
+`pomodoro_interval_minutes` (~60): at >= 55 min at a natural breakpoint
+(completed task, commit, "that works"), or >= 65 min regardless. A break
+is a 5+ minute gap. Nudge format: `references/interventions.md` § Layer 1.
+The hook logs and resolves break/skip outcomes — you never write them.
 
-**Action:** Run the **Bulk-Close Procedure** (`references/rituals.md`) —
-count open goals, one confirmation prompt, close each goal via
-`state.py close-goal` on yes, silence on no.
+### Layer 2: Hard Boundary (behaviour-based — competence spiral)
 
-### Layer 1: Pomodoro Rhythm (Soft Boundary)
+Form-degradation signals converging, independent of the timer.
+High-confidence (weight 3): retry loops, diminishing returns, scope creep.
+Medium (1–2): decision deferral, narrowing curiosity, completion fixation,
+parallel threads, boundary crossing. Definitions and weights:
+`references/signals.md`. Threshold: score >= 6 in the 20-min window (or
+>= 5 with one high-confidence signal).
 
-Fires when continuous session time approaches ~60 minutes. Context-aware:
-look for natural seams — a completed task, a commit, a "that works" moment,
-a topic change. A nudge at 55 minutes at a natural pause beats 60 minutes
-mid-thought.
-
-**Detection:** `session_duration_since_last_break >= 55 minutes` AND a
-natural breakpoint is detected (or >= 65 minutes regardless — don't wait
-forever). A "break" is a gap of 5+ minutes between prompts; shorter gaps do
-not count as recovery.
-
-Nudge format and break/skip logging: `references/interventions.md` § Layer 1.
-Break skips are logged but never nagged about.
-
-### Layer 2: Hard Boundary (Behaviour-Based)
-
-Fires when form-degradation signals converge, independent of the timer.
-High-confidence signals (weight 3): retry loops, diminishing returns, scope
-creep. Medium: decision deferral, narrowing curiosity, completion fixation,
-parallel threads, boundary crossing. Definitions, detection criteria, and
-weights: `references/signals.md`.
-
-**Trigger threshold:** At least 2 high-confidence signals OR 1 high + 2
-medium signals within the last 20 minutes (canonical score threshold in
-`references/signals.md`). Always validate with the meta-prompt before firing;
-**if the evidence is ambiguous, do not intervene**.
-
-**Hook-triggered — do not rely on self-auditing.** You will not reliably
-notice Layer 2 on your own while working. When the hook emits
-`[TANK — HARD BOUNDARY CHECK]`, run the full check in
+Hook-triggered — you will not reliably notice this on your own while
+working. On `[TANK — HARD BOUNDARY CHECK]`, run the full check in
 `references/interventions.md` § Layer 2: read accumulated signals via
 `state.py get-session-summary`, record new ones via `state.py log-signal`,
-score the window, run the meta-prompt, and only then fire (or not). The
-fire/no-fire decision is yours, and the nudge's evidence line must be
-accurate.
+score the window, run the meta-prompt, and only then fire or stay silent.
+The evidence line must be accurate (conduct rule 2).
 
-### Layer 3: Session End Check-in (2x2)
+### Layer 3: Session End Check-in (2x2 — intention to review)
 
-Fires when the **last open goal** in the Tank session is closed — via
-`/tank-hard-hat end` when no other goals remain, or when the
-user confirms "yes" on timeout detection. In both cases the user is present.
-`end_reason` values: `"explicit_quit"` or `"timeout_confirmed"`.
+Fires when the **last open goal** closes — `/tank-hard-hat end` with no
+other goals remaining, or a confirmed timeout. In both cases the user is
+present. `end_reason` values: `"explicit_quit"` or `"timeout_confirmed"`.
+`close-goal` on the last
+goal parks the session in `closing` (end_time written, file stays at
+`sessions/` top level); the 2x2 reply via `state.py end-session` finalizes
+it (`closed`, moved to `closed/`); wrap-ups abandoned past
+`closing_window_seconds` (default 300) are swept closed by the hook.
+Check-in format and exact invocation: `references/rituals.md` § Session
+End Check-in. `end-session` is the single canonical writer for the 2x2 —
+do not reach for `state.py set-field` here.
 
-**Lifecycle:** `close-goal` on the last open goal parks the session in the
-`closing` state — `end_time` is written but the file stays at `sessions/`
-top level. The 2x2 reply, persisted via `state.py end-session`, finalizes
-the session (`state: "closed"`, moved to `closed/`). If the wrap-up is
-abandoned longer than `closing_window_seconds` (default 300), the hook
-sweeps it closed with `end_reason: "wrap_up_abandoned"`.
-
-Check-in format, quadrant mapping, and the exact `end-session` invocation:
-`references/rituals.md` § Session End Check-in. `end-session` is the single
-canonical writer for the 2x2 — do not reach for `state.py set-field` here.
-
-If `/tank-hard-hat end` is run but other goals are still open,
-Layer 3 does NOT fire — announce the open goals and offer bulk-close
+If `/tank-hard-hat end` is run with other goals still open, Layer 3 does
+NOT fire — announce the open goals and offer bulk-close
 (`references/commands.md`).
 
 ## Slash Commands
 
-`/tank-hard-hat <arg>`: `help` (also any unrecognised arg),
-`quiet` (suppress Layers 1/2/3 this session; Layer 0 still fires), `resume`
-(re-enable nudges), `end` (close this window's goal; 2x2 only when the last
-goal closes). Implementations, dispatch rules, and exact output text:
+`/tank-hard-hat <arg>`: `help` (also any unrecognised arg), `quiet`
+(suppress Layers 1/2/3 this session; Layer 0 still fires), `resume`
+(re-enable nudges), `end` (close this window's goal; 2x2 only when the
+last goal closes). Implementations and exact output text:
 `references/commands.md` — print the boxed text verbatim. A `help`
-invocation is not a real prompt: do not log it, run signal detection, or do
-any other work.
+invocation is not a real prompt: do not log it, run signal detection, or
+do any other work.
 
 ## Data Model
 
-All data stored in `~/.tank/` as JSON. Sessions are the source of truth;
-dailies and retros are computed and can be regenerated. Complete schemas:
-`references/data-model.md`.
-
-A session's lifecycle is a three-state machine. The canonical state lives in
-the session's `state` field; file location is a derived index:
+All data in `~/.tank/` as JSON; sessions are the source of truth, dailies
+are computed. Complete schemas: `references/data-model.md`. Session
+lifecycle is a three-state machine (canonical state in the session's
+`state` field; file location is a derived index):
 
 ```
 open ──(close-goal, last goal)──▶ closing ──(end-session, 2x2)──▶ closed
@@ -274,47 +288,23 @@ open ──(close-goal, last goal)──▶ closing ──(end-session, 2x2)─�
   └────────(reopen-session)──────────┴──(stale: hook sweep finalizes)──▶ closed
 ```
 
-Open and closing sessions live at `sessions/` top level (top level = needs
-attention); finalized sessions move to `sessions/closed/`. `checkin: null`
-on a closed session means the wrap-up was never collected.
-`state.py reopen-session <id>` is the undo: restores `open`, clears
-`end_time`/`end_reason`, moves the file back if needed.
-
-## Hook-Computed Data
-
-The hook computes and stores prompt content data mechanically — Claude reads
-the outcomes from session data and never computes or stores them. Each
-prompt gets a keyword fingerprint (secret-shaped tokens are dropped before
-anything is written; a legacy `prompt_tracking_mode: "summary"` config value
-is accepted and behaves identically — nothing writes `content_summary`, and
-Claude must not start). Retry detection runs on fingerprints: >= 0.6
-similarity against the last 5 prompts classifies as `retry`, increments
-`retry_loop_count`, and 2+ retries in 20 minutes adds `retry_loop` to
-`signals_fired` — the highest-weight hard-boundary input.
-
-**Fingerprints do not outlive the session.** On the transition into `closed`
-(either edge: `end-session` or the stale sweep) the aggregates are
-snapshotted onto the session record and `events/<session_id>/` is deleted;
-a hook GC pass converges leftovers. Retros read the snapshot, never raw
-events. Event shape, field definitions, and the retention contract:
-`references/data-model.md`.
+The hook computes prompt-content data mechanically — keyword fingerprints
+(secret-shaped tokens dropped before writing), retry detection (>= 0.6
+similarity vs the last 5 prompts; 2+ retries in 20 min fires
+`retry_loop`). You read outcomes from session data; you never compute or
+store them. Fingerprints do not outlive the session: on the transition to
+`closed`, aggregates are snapshotted and `events/<session_id>/` is
+deleted; a hook GC pass converges leftovers. Dailies read the snapshot,
+never raw events. Retention contract: `references/data-model.md`.
 
 ## Configuration
 
 Key tuneables in `~/.tank/config.json` (full spec:
 `references/config-schema.md`): `pomodoro_interval_minutes` (60),
-`min_break_duration_minutes` (5), `session_timeout_minutes` (defaults to the
-pomodoro interval), `closing_window_seconds` (300),
-`hard_boundary_sensitivity` (medium), `intrusiveness` (high), `work_hours`
-(09:00–18:00, for boundary crossing), `prompt_tracking_mode` (fingerprint).
-
-Per-session, set via slash commands (not in config): `quiet_mode` (default
-false) — suppresses Layers 1/2/3 when true.
-
-## Retro / Canvas
-
-When the user asks for a retro or weekly summary, read from `~/.tank/retro/`
-and present: trends (session length, break compliance, scope breadth),
-patterns (boundary creep, recovery debt), the 2x2 trajectory, and
-recommendations grounded in what the data shows. The skill does not
-prescribe — it surfaces patterns for the user to interpret.
+`min_break_duration_minutes` (5), `session_timeout_minutes` (defaults to
+the pomodoro interval), `closing_window_seconds` (300),
+`hard_boundary_sensitivity` (medium), `intrusiveness` (high),
+`work_hours` (09:00–18:00, for boundary crossing), `prompt_tracking_mode`
+(fingerprint; a legacy
+`"summary"` value behaves identically — nothing writes `content_summary`).
+Per-session, via slash commands: `quiet_mode` (default false).

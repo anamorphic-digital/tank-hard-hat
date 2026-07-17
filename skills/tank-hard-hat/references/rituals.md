@@ -10,7 +10,7 @@ reproduce them exactly, do not improvise.
 
 Fires on the first invocation, when `~/.tank/` does not exist. Show the
 message first — only after showing it do you create the directory structure
-(`~/.tank/{config.json,sessions/,dailies/,retro/}`) and write default config.
+(`~/.tank/{config.json,sessions/,dailies/}`) and write default config.
 
 ```
 ───────────────────────────────────────
@@ -87,9 +87,8 @@ confirmed a timeout.
 
    We're working together — I'll nudge
    at natural seams and flag diminishing
-   returns. If you'd rather I stay quiet
-   today, use /tank-hard-hat
-   quiet.
+   returns. If you'd rather I stay
+   quiet today, use /tank-hard-hat quiet.
 
    What's your goal for this session?
 ───────────────────────────────────────

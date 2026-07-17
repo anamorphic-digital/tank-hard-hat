@@ -1,9 +1,8 @@
 # Slash Command Implementations
 
-`/tank-hard-hat <arg>` invokes the skill with an argument.
-Dispatch on the arg below. Any unrecognised arg (including `--help`, `-h`,
-or a typo) dispatches to `help`. The boxed outputs are contracts — print
-them exactly.
+`/tank-hard-hat <arg>` invokes the skill with an argument. Dispatch on the
+arg below. Any unrecognised arg (including `--help`, `-h`, or a typo)
+dispatches to `help`. The boxed outputs are contracts — print them exactly.
 
 ## `/tank-hard-hat help`
 
@@ -57,8 +56,8 @@ Confirm with:
 ───────────────────────────────────────
 🦉 Quiet mode on. I'll only speak up
    if you sound like you're hitting a
-   wall. Use /tank-hard-hat
-   resume to turn nudges back on.
+   wall. Use /tank-hard-hat resume to
+   turn nudges back on.
 ───────────────────────────────────────
 ```
 

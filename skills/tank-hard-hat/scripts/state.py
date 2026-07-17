@@ -27,7 +27,6 @@ Usage:
   python state.py get-session-summary <session_id> # Computed aggregates for current session
   python state.py end-session <session_id> <checkin_json> [end_time_iso] # Close session with 2x2 data (end_time_iso optional, defaults to now; pass explicit ISO timestamp to close stale sessions)
   python state.py compute-daily <date>          # Generate daily rollup from sessions (open + closed)
-  python state.py compute-retro <week>          # Generate weekly retro from dailies
   python state.py last-session                  # Get the most recent session ID and its state
   python state.py config                        # Read current config
   python state.py config-set <key> <value>      # Update a config value
@@ -51,7 +50,6 @@ TANK_DIR = Path.home() / ".tank"
 SESSIONS_DIR = TANK_DIR / "sessions"
 CLOSED_DIR = SESSIONS_DIR / "closed"
 DAILIES_DIR = TANK_DIR / "dailies"
-RETRO_DIR = TANK_DIR / "retro"
 EVENTS_DIR = TANK_DIR / "events"
 CONFIG_PATH = TANK_DIR / "config.json"
 
@@ -71,7 +69,6 @@ DEFAULT_CONFIG = {
     "work_hours": {"start": "09:00", "end": "18:00"},
     "timezone": "Australia/Sydney",
     "recovery_suggestions_enabled": True,
-    "retro_cadence": "weekly",
     "onboarding_complete": False,
 }
 
@@ -122,7 +119,7 @@ def derive_state(session):
 
 def init():
     """Create ~/.tank/ directory structure and default config."""
-    for d in [TANK_DIR, SESSIONS_DIR, CLOSED_DIR, DAILIES_DIR, RETRO_DIR, EVENTS_DIR]:
+    for d in [TANK_DIR, SESSIONS_DIR, CLOSED_DIR, DAILIES_DIR, EVENTS_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
     if not CONFIG_PATH.exists():
@@ -402,7 +399,7 @@ def compute_aggregates(prompts, duration_minutes, fired_signals):
     Shared by get-session-summary (on-demand, open sessions) and by both
     finalization edges into `closed` (end-session below; the stale-closing
     sweep in hook-prompt.py imports this). The snapshot persisted at close is
-    all that dailies/retros can read once the event store is deleted —
+    all that dailies can read once the event store is deleted —
     fingerprints are working memory for the open session and do not outlive
     it.
     """
